@@ -10,14 +10,15 @@ import rx.Observable;
  *
  * @param <T> The type associated with events.
  */
-public interface EventStore<T> {
+public interface EventStore<T, S> {
 
   /**
    * Publish an event to all subscribers of the EventStore.
    *
-   * @param event The event to publish.
+   * @param type
+   * @param scope
    */
-  void publishEvent(Event<T> event);
+  void publishEvent(T type, S scope);
 
   /**
    * Get the id of the latest Event to have been published.
@@ -31,5 +32,5 @@ public interface EventStore<T> {
    *
    * @return An Observable which will emit the Events.
    */
-  Observable<Event<T>> register();
+  Observable<Event<T, S>> register();
 }

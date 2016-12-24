@@ -60,7 +60,6 @@
       <artifactId>vertx-rx-java</artifactId>
       <version>${vertx.version}</version>
     </dependency>
-    <!--Test dependencies-->
     <dependency>
       <groupId>io.vertx</groupId>
       <artifactId>vertx-unit</artifactId>
@@ -70,6 +69,11 @@
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <version>4.8.1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>3.2</version>
     </dependency>
   </dependencies>
 </project>

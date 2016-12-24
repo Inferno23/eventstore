@@ -2,22 +2,21 @@ package io.github.burns.eventstore.impl;
 
 import io.github.burns.eventstore.Event;
 import io.github.burns.eventstore.EventStore;
+import org.apache.commons.lang3.tuple.Pair;
 import rx.Observable;
 import rx.subjects.ReplaySubject;
 
-import java.util.Collections;
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 
 /**
  * Implementation of the EventStore interface.
  */
-public class EventStoreImpl<T, S> implements EventStore<T, S> {
+public class EventStoreImpl<T, S, C> implements EventStore<T, S, C> {
 
-  private final Map<ReplaySubject<Event<T, S>>, Predicate<S>> subjectPredicateMap;
+  private final List<Pair<ReplaySubject<Event<T, S, C>>, Predicate<S>>> tupleList;
   private final AtomicInteger idCounter;
 
   /**
@@ -26,15 +25,20 @@ public class EventStoreImpl<T, S> implements EventStore<T, S> {
    */
   public EventStoreImpl() {
     idCounter = new AtomicInteger(1);
-    subjectPredicateMap = new HashMap<>();
+    tupleList = new ArrayList<>();
   }
 
   @Override
-  public void publishEvent(T type, S scope) {
-    final Event<T, S> event = new Event<>(idCounter.getAndIncrement(), type, scope);
-    subjectPredicateMap.entrySet().forEach(entry -> {
-          if (entry.getValue().test(scope)){
-            entry.getKey().onNext(event);
+  public void publishEvent(T type, S scope, C content) {
+    final Event<T, S, C> event = new Event<>(idCounter.getAndIncrement(), type, scope, content);
+    tupleList.forEach(tuple -> {
+          final ReplaySubject<Event<T, S, C>> subject = tuple.getLeft();
+          final Predicate<S> predicate = tuple.getRight();
+
+          if (predicate.test(scope)){
+            subject.onNext(event);
+          } else {
+            subject.onNext(new Event<>(event.id, type, scope, null));
           }
         }
     );
@@ -46,9 +50,9 @@ public class EventStoreImpl<T, S> implements EventStore<T, S> {
   }
 
   @Override
-  public Observable<Event<T, S>> register(Predicate<S> publishingPredicate) {
-    final ReplaySubject<Event<T, S>> subject = ReplaySubject.create();
-    subjectPredicateMap.put(subject, publishingPredicate);
+  public Observable<Event<T, S, C>> register(Predicate<S> publishingPredicate) {
+    final ReplaySubject<Event<T, S, C>> subject = ReplaySubject.create();
+    tupleList.add(Pair.of(subject, publishingPredicate));
     return subject.asObservable();
   }
 }

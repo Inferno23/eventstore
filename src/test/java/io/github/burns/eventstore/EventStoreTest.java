@@ -1,6 +1,7 @@
 package io.github.burns.eventstore;
 
 import io.github.burns.eventstore.impl.EventStoreImpl;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -23,7 +24,7 @@ import static io.github.burns.eventstore.ExampleEventType.TWO;
 @RunWith(VertxUnitRunner.class)
 public class EventStoreTest {
   public static final Predicate<ExampleEventScope> ALL_EVENTS_PREDICATE = s -> true;
-  private EventStore<ExampleEventType, ExampleEventScope> eventStore;
+  private EventStore<ExampleEventType, ExampleEventScope, JsonObject> eventStore;
 
   @Before
   public void before() {
@@ -55,12 +56,12 @@ public class EventStoreTest {
     // Register for events
     eventStore.register(ALL_EVENTS_PREDICATE)
         .subscribe(event -> {
-          if (event.id == 1) {
+          if (event.id == expectedIdOne) {
              context.assertEquals(expectedIdOne, event.id);
              context.assertEquals(ONE, event.type);
              context.assertEquals(PUBLIC, event.scope);
              asyncOne.complete();
-          } else if (event.id == 2) {
+          } else if (event.id == expectedIdTwo) {
              context.assertEquals(expectedIdTwo, event.id);
              context.assertEquals(TWO, event.type);
              context.assertEquals(PUBLIC, event.scope);
@@ -77,14 +78,30 @@ public class EventStoreTest {
   @Test(timeout = 2000L)
   public void ignorePrivateEventTest(TestContext context) {
     final Async async = context.async();
+    final int expectedIdOne = eventStore.latestEventId() + 1;
+    final int expectedIdTwo = expectedIdOne + 1;
+    final JsonObject content = new JsonObject().put("FOO", "BAR");
     // Register for only public events
     eventStore.register(PUBLIC::equals)
         .subscribe(event -> {
-          context.assertNotEquals(PRIVATE_1, event.scope);
-          async.complete();
+          if (event.id == expectedIdOne) {
+            context.assertEquals(expectedIdOne, event.id);
+            context.assertEquals(ONE, event.type);
+            context.assertEquals(PRIVATE_1, event.scope);
+            context.assertNull(event.content);
+          } else if (event.id == expectedIdTwo) {
+            context.assertEquals(expectedIdTwo, event.id);
+            context.assertEquals(TWO, event.type);
+            context.assertEquals(PUBLIC, event.scope);
+            context.assertNotNull(event.content);
+            context.assertEquals(content, event.content);
+            async.complete();
+          } else {
+            context.fail("Unexpected id received: " + event.toString());
+          }
         }, context::fail);
     // Publish the events
     eventStore.publishEvent(ONE, PRIVATE_1);
-    eventStore.publishEvent(TWO, PUBLIC);
+    eventStore.publishEvent(TWO, PUBLIC, content);
   }
 }

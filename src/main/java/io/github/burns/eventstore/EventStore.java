@@ -1,5 +1,6 @@
 package io.github.burns.eventstore;
 
+import io.vertx.core.json.JsonObject;
 import rx.Observable;
 
 import java.util.function.Predicate;
@@ -13,7 +14,7 @@ import java.util.function.Predicate;
  * @param <T> The type associated with events.
  * @param <S> The scope of who should see an event.
  */
-public interface EventStore<T, S> {
+public interface EventStore<T, S, C> {
 
   /**
    * Publish an event to all subscribers of the EventStore.
@@ -21,7 +22,17 @@ public interface EventStore<T, S> {
    * @param type The type of event that is being published.
    * @param scope The scope of who should see the published event.
    */
-  void publishEvent(T type, S scope);
+  default void publishEvent(T type, S scope) {
+    publishEvent(type, scope, null);
+  }
+
+  /**
+   * Publish an event to all subscribers of the EventStore.
+   *  @param type The type of event that is being published.
+   * @param scope The scope of who should see the published event.
+   * @param content
+   */
+  void publishEvent(T type, S scope, C content);
 
   /**
    * Get the id of the latest Event to have been published.
@@ -39,5 +50,5 @@ public interface EventStore<T, S> {
    *
    * @return An Observable which will emit the Events.
    */
-  Observable<Event<T, S>> register(Predicate<S> publishingPredicate);
+  Observable<Event<T, S, C>> register(Predicate<S> publishingPredicate);
 }

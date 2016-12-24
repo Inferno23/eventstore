@@ -8,6 +8,9 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.util.function.Predicate;
+
+import static io.github.burns.eventstore.ExampleEventScope.PRIVATE_1;
 import static io.github.burns.eventstore.ExampleEventScope.PUBLIC;
 import static io.github.burns.eventstore.ExampleEventType.ONE;
 import static io.github.burns.eventstore.ExampleEventType.START;
@@ -19,6 +22,7 @@ import static io.github.burns.eventstore.ExampleEventType.TWO;
  */
 @RunWith(VertxUnitRunner.class)
 public class EventStoreTest {
+  public static final Predicate<ExampleEventScope> ALL_EVENTS_PREDICATE = s -> true;
   private EventStore<ExampleEventType, ExampleEventScope> eventStore;
 
   @Before
@@ -31,7 +35,7 @@ public class EventStoreTest {
     final Async async = context.async();
     final int expectedId = eventStore.latestEventId() + 1;
     // Register for events
-    eventStore.register()
+    eventStore.register(ALL_EVENTS_PREDICATE)
         .subscribe(event -> {
           context.assertEquals(expectedId, event.id);
           context.assertEquals(START, event.type);
@@ -49,7 +53,7 @@ public class EventStoreTest {
     final int expectedIdOne = eventStore.latestEventId() + 1;
     final int expectedIdTwo = expectedIdOne + 1;
     // Register for events
-    eventStore.register()
+    eventStore.register(ALL_EVENTS_PREDICATE)
         .subscribe(event -> {
           if (event.id == 1) {
              context.assertEquals(expectedIdOne, event.id);
@@ -70,5 +74,17 @@ public class EventStoreTest {
     eventStore.publishEvent(TWO, PUBLIC);
   }
 
-
+  @Test(timeout = 2000L)
+  public void ignorePrivateEventTest(TestContext context) {
+    final Async async = context.async();
+    // Register for only public events
+    eventStore.register(PUBLIC::equals)
+        .subscribe(event -> {
+          context.assertNotEquals(PRIVATE_1, event.scope);
+          async.complete();
+        }, context::fail);
+    // Publish the events
+    eventStore.publishEvent(ONE, PRIVATE_1);
+    eventStore.publishEvent(TWO, PUBLIC);
+  }
 }

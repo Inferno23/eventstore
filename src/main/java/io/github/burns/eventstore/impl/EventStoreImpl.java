@@ -35,11 +35,8 @@ public class EventStoreImpl<T, S, C> implements EventStore<T, S, C> {
           final ReplaySubject<Event<T, S, C>> subject = tuple.getLeft();
           final Predicate<S> predicate = tuple.getRight();
 
-          if (predicate.test(scope)){
-            subject.onNext(event);
-          } else {
-            subject.onNext(new Event<>(event.id, type, scope, null));
-          }
+          subject.onNext(predicate.test(scope)
+              ? event : new Event<>(event.id, type, scope, null));
         }
     );
   }

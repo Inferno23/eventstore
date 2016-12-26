@@ -1,7 +1,7 @@
 package io.github.burns.eventstore;
 
 /**
- * Created by mike on 12/24/16.
+ * An example enum to use as a type.
  */
 public enum ExampleEventType {
   START,

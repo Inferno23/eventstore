@@ -19,11 +19,13 @@ import static io.github.burns.eventstore.ExampleEventType.TWO;
 
 
 /**
- * Created by mike on 12/23/16.
+ * Tests to validate the behavior of the implementation
+ * of the EventStore interface.
  */
 @RunWith(VertxUnitRunner.class)
 public class EventStoreTest {
   public static final Predicate<ExampleEventScope> ALL_EVENTS_PREDICATE = s -> true;
+  public static final long TIMEOUT = 2000L;
   private EventStore<ExampleEventType, ExampleEventScope, JsonObject> eventStore;
 
   @Before
@@ -31,7 +33,7 @@ public class EventStoreTest {
     eventStore = new EventStoreImpl<>();
   }
 
-  @Test(timeout = 2000L)
+  @Test(timeout = TIMEOUT)
   public void publicEventSingleSubscriberTest(TestContext context) {
     final Async async = context.async();
     final int expectedId = eventStore.latestEventId() + 1;
@@ -47,7 +49,7 @@ public class EventStoreTest {
     eventStore.publishEvent(START, PUBLIC);
   }
 
-  @Test(timeout = 2000L)
+  @Test(timeout = TIMEOUT)
   public void twoEventsSingleSubscriberTest(TestContext context) {
     final Async asyncOne = context.async();
     final Async asyncTwo = context.async();
@@ -75,7 +77,7 @@ public class EventStoreTest {
     eventStore.publishEvent(TWO, PUBLIC);
   }
 
-  @Test(timeout = 2000L)
+  @Test(timeout = TIMEOUT)
   public void ignorePrivateEventTest(TestContext context) {
     final Async async = context.async();
     final int expectedIdOne = eventStore.latestEventId() + 1;

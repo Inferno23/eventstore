@@ -103,7 +103,73 @@ public class EventStoreTest {
           }
         }, context::fail);
     // Publish the events
-    eventStore.publishEvent(ONE, PRIVATE_1);
+    eventStore.publishEvent(ONE, PRIVATE_1, content);
     eventStore.publishEvent(TWO, PUBLIC, content);
+  }
+
+  @Test(timeout = TIMEOUT)
+  public void replayEventsIgnoringContentTest(TestContext context) {
+    final Async asyncOne = context.async(2);
+    final Async asyncTwo = context.async(2);
+    final int startingId = eventStore.latestEventId();
+    final int expectedIdOne = startingId + 1;
+    final int expectedIdTwo = expectedIdOne + 1;
+    // Register for events
+    eventStore.register(ALL_EVENTS_PREDICATE)
+        .subscribe(event -> {
+          if (event.id == expectedIdOne) {
+            context.assertEquals(expectedIdOne, event.id);
+            context.assertEquals(ONE, event.type);
+            context.assertEquals(PUBLIC, event.scope);
+            asyncOne.countDown();
+          } else if (event.id == expectedIdTwo) {
+            context.assertEquals(expectedIdTwo, event.id);
+            context.assertEquals(TWO, event.type);
+            context.assertEquals(PUBLIC, event.scope);
+            asyncTwo.countDown();
+          } else {
+            context.fail("Unexpected id received: " + event.toString());
+          }
+        }, context::fail);
+    // Publish some events
+    eventStore.publishEvent(ONE, PUBLIC);
+    eventStore.publishEvent(TWO, PUBLIC);
+    // Replay the events
+    eventStore.getEvents(startingId);
+  }
+
+  @Test(timeout = TIMEOUT)
+  public void replayEventsWithContentTest(TestContext context) {
+    final Async asyncOne = context.async(2);
+    final Async asyncTwo = context.async(2);
+    final int startingId = eventStore.latestEventId();
+    final int expectedIdOne = startingId + 1;
+    final int expectedIdTwo = expectedIdOne + 1;
+    final JsonObject content = new JsonObject().put("FOO", "BAR");
+    // Register for events
+    eventStore.register(PUBLIC::equals)
+        .subscribe(event -> {
+          if (event.id == expectedIdOne) {
+            context.assertEquals(expectedIdOne, event.id);
+            context.assertEquals(ONE, event.type);
+            context.assertEquals(PRIVATE_1, event.scope);
+            context.assertNull(event.content);
+            asyncOne.countDown();
+          } else if (event.id == expectedIdTwo) {
+            context.assertEquals(expectedIdTwo, event.id);
+            context.assertEquals(TWO, event.type);
+            context.assertEquals(PUBLIC, event.scope);
+            context.assertNotNull(event.content);
+            context.assertEquals(content, event.content);
+            asyncTwo.countDown();
+          } else {
+            context.fail("Unexpected id received: " + event.toString());
+          }
+        }, context::fail);
+    // Publish some events
+    eventStore.publishEvent(ONE, PRIVATE_1, content);
+    eventStore.publishEvent(TWO, PUBLIC, content);
+    // Replay the events
+    eventStore.getEvents(startingId);
   }
 }

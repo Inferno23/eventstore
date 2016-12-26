@@ -18,6 +18,7 @@ public class EventStoreImpl<T, S, C> implements EventStore<T, S, C> {
 
   private final List<Pair<ReplaySubject<Event<T, S, C>>, Predicate<S>>> tupleList;
   private final AtomicInteger idCounter;
+  private final List<Event<T, S, C>> eventList;
 
   /**
    * Initialize the EventStore so users can register for events
@@ -26,11 +27,13 @@ public class EventStoreImpl<T, S, C> implements EventStore<T, S, C> {
   public EventStoreImpl() {
     idCounter = new AtomicInteger(1);
     tupleList = new ArrayList<>();
+    eventList = new ArrayList<>();
   }
 
   @Override
   public void publishEvent(T type, S scope, C content) {
     final Event<T, S, C> event = new Event<>(idCounter.getAndIncrement(), type, scope, content);
+    eventList.add(event);
     tupleList.forEach(tuple -> {
           final ReplaySubject<Event<T, S, C>> subject = tuple.getLeft();
           final Predicate<S> predicate = tuple.getRight();
@@ -51,5 +54,20 @@ public class EventStoreImpl<T, S, C> implements EventStore<T, S, C> {
     final ReplaySubject<Event<T, S, C>> subject = ReplaySubject.create();
     tupleList.add(Pair.of(subject, publishingPredicate));
     return subject.asObservable();
+  }
+
+  @Override
+  public void getEvents(int eventId) {
+    tupleList.forEach(tuple -> {
+          final ReplaySubject<Event<T, S, C>> subject = tuple.getLeft();
+          final Predicate<S> predicate = tuple.getRight();
+
+          eventList.stream()
+              .filter(event -> event.id >= eventId)
+              .forEachOrdered(event ->
+                  subject.onNext(predicate.test(event.scope)
+                      ? event : new Event<>(event.id, event.type, event.scope, null)));
+        }
+    );
   }
 }

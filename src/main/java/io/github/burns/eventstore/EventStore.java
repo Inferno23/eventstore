@@ -1,6 +1,5 @@
 package io.github.burns.eventstore;
 
-import io.vertx.core.json.JsonObject;
 import rx.Observable;
 
 import java.util.function.Predicate;
@@ -19,7 +18,7 @@ public interface EventStore<T, S, C> {
   /**
    * Publish an event to all subscribers of the EventStore.
    *
-   * @param type The type of event that is being published.
+   * @param type  The type of event that is being published.
    * @param scope The scope of who should see the published event.
    */
   default void publishEvent(T type, S scope) {
@@ -28,9 +27,10 @@ public interface EventStore<T, S, C> {
 
   /**
    * Publish an event to all subscribers of the EventStore.
-   *  @param type The type of event that is being published.
-   * @param scope The scope of who should see the published event.
-   * @param content
+   *
+   * @param type    The type of event that is being published.
+   * @param scope   The scope of who should see the published event.
+   * @param content The content to include with the event.
    */
   void publishEvent(T type, S scope, C content);
 
@@ -47,8 +47,14 @@ public interface EventStore<T, S, C> {
    * @param publishingPredicate A predicate which determines if
    *                            which scopes of events should
    *                            be published to the registerer.
-   *
    * @return An Observable which will emit the Events.
    */
   Observable<Event<T, S, C>> register(Predicate<S> publishingPredicate);
+
+  /**
+   * Replay events starting with the given event ID.
+   *
+   * @param eventId The event ID to start replaying with.
+   */
+  void getEvents(int eventId);
 }

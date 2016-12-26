@@ -10,13 +10,15 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import rx.functions.Action1;
 
 import java.util.function.Predicate;
 
 import static io.github.burns.eventstore.ExampleEventScope.PRIVATE_1;
+import static io.github.burns.eventstore.ExampleEventScope.PRIVATE_2;
 import static io.github.burns.eventstore.ExampleEventScope.PUBLIC;
 import static io.github.burns.eventstore.ExampleEventType.ONE;
-import static io.github.burns.eventstore.ExampleEventType.START;
+import static io.github.burns.eventstore.ExampleEventType.THREE;
 import static io.github.burns.eventstore.ExampleEventType.TWO;
 
 
@@ -48,12 +50,12 @@ public class EventStoreTest {
     eventStore.register(ALL_EVENTS_PREDICATE)
         .subscribe(event -> {
           context.assertEquals(expectedId, event.id);
-          context.assertEquals(START, event.type);
+          context.assertEquals(ONE, event.type);
           context.assertEquals(PUBLIC, event.scope);
           async.complete();
         }, context::fail);
     // Publish the event
-    eventStore.publishEvent(START, PUBLIC);
+    eventStore.publishEvent(ONE, PUBLIC);
   }
 
   @Test(timeout = TIMEOUT)
@@ -185,5 +187,46 @@ public class EventStoreTest {
     final Async async = context.async();
     new EventProcessor<>(ALL_EVENTS_PREDICATE, event -> async.complete());
     eventStore.publishEvent(ONE, PUBLIC);
+  }
+
+  @Test(timeout = TIMEOUT)
+  public void initializeProcessorAfterPublishingEventsTest(TestContext context) {
+    final Async async = context.async();
+    eventStore.publishEvent(ONE, PUBLIC);
+    new EventProcessor<>(ALL_EVENTS_PREDICATE, event -> async.complete());
+  }
+
+  @Test(timeout = TIMEOUT)
+  public void eventProcessorWithPredicateTest(TestContext context) {
+    final Async async = context.async(2);
+    new EventProcessor<>(PUBLIC::equals, countDownIfContentIsNonNull(async));
+    eventStore.publishEvent(ONE, PUBLIC, new JsonObject());
+    eventStore.publishEvent(TWO, PUBLIC);
+    eventStore.publishEvent(THREE, PUBLIC, new JsonObject());
+  }
+
+  @Test(timeout = TIMEOUT)
+  public void multipleEventProcessorsTest(TestContext context) {
+    final Async asyncOne = context.async();
+    final Async asyncTwo = context.async();
+    new EventProcessor<>(PRIVATE_1::equals, countDownIfContentIsNonNull(asyncOne));
+    new EventProcessor<>(PRIVATE_2::equals, countDownIfContentIsNonNull(asyncTwo));
+    eventStore.publishEvent(ONE, PRIVATE_1, new JsonObject());
+    eventStore.publishEvent(TWO, PRIVATE_2, new JsonObject());
+  }
+
+  /**
+   * Helper to produce an action which consumes an event, and
+   * counts down an Async instance if the event has non-null content.
+   *
+   * @param async The async to potentially count down.
+   * @return The Action to pass in to an EventProcessor.
+   */
+  private Action1<Event<Object, Object, Object>> countDownIfContentIsNonNull(Async async) {
+    return event -> {
+      if (event.content != null) {
+        async.countDown();
+      }
+    };
   }
 }

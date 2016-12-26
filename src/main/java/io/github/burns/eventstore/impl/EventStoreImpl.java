@@ -9,6 +9,7 @@ import rx.subjects.ReplaySubject;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /**
@@ -25,7 +26,7 @@ public class EventStoreImpl<T, S, C> implements EventStore<T, S, C> {
    * and publish new events.
    */
   public EventStoreImpl() {
-    idCounter = new AtomicInteger(1);
+    idCounter = new AtomicInteger(INITIAL_EVENT_ID);
     tupleList = new ArrayList<>();
     eventList = new ArrayList<>();
   }
@@ -34,14 +35,7 @@ public class EventStoreImpl<T, S, C> implements EventStore<T, S, C> {
   public void publishEvent(T type, S scope, C content) {
     final Event<T, S, C> event = new Event<>(idCounter.getAndIncrement(), type, scope, content);
     eventList.add(event);
-    tupleList.forEach(tuple -> {
-          final ReplaySubject<Event<T, S, C>> subject = tuple.getLeft();
-          final Predicate<S> predicate = tuple.getRight();
-
-          subject.onNext(predicate.test(scope)
-              ? event : new Event<>(event.id, type, scope, null));
-        }
-    );
+    tupleList.forEach(publishEventToTuple(event));
   }
 
   @Override
@@ -58,16 +52,26 @@ public class EventStoreImpl<T, S, C> implements EventStore<T, S, C> {
 
   @Override
   public void getEvents(int eventId) {
-    tupleList.forEach(tuple -> {
-          final ReplaySubject<Event<T, S, C>> subject = tuple.getLeft();
-          final Predicate<S> predicate = tuple.getRight();
+    eventList.stream()
+        .filter(event -> event.id >= eventId)
+        .forEach(event -> tupleList.forEach(publishEventToTuple(event)));
+  }
 
-          eventList.stream()
-              .filter(event -> event.id >= eventId)
-              .forEachOrdered(event ->
-                  subject.onNext(predicate.test(event.scope)
-                      ? event : new Event<>(event.id, event.type, event.scope, null)));
-        }
-    );
+  /**
+   * Helper to produce a consumer which handles publishing an
+   * event to a subject that is held in a tuple.
+   *
+   * @param event The event to publish.
+   * @return A consumer to pass into a forEach for the tuple list.
+   */
+  private Consumer<Pair<ReplaySubject<Event<T, S, C>>, Predicate<S>>> publishEventToTuple(
+      Event<T, S, C> event) {
+    return tuple -> {
+      final ReplaySubject<Event<T, S, C>> subject = tuple.getLeft();
+      final Predicate<S> predicate = tuple.getRight();
+
+      subject.onNext(predicate.test(event.scope)
+          ? event : new Event<>(event.id, event.type, event.scope, null));
+    };
   }
 }

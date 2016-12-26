@@ -16,6 +16,11 @@ import java.util.function.Predicate;
 public interface EventStore<T, S, C> {
 
   /**
+   * The initial event ID to use.
+   */
+  int INITIAL_EVENT_ID = 1;
+
+  /**
    * Publish an event to all subscribers of the EventStore.
    *
    * @param type  The type of event that is being published.

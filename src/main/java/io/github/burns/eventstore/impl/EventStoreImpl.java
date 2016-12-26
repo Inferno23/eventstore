@@ -14,9 +14,12 @@ import java.util.function.Predicate;
 
 /**
  * Implementation of the EventStore interface.
+ *
+ * @param <T> The type associated with events.
+ * @param <S> The scope of who should see an event.
+ * @param <C> The type of context.
  */
 public class EventStoreImpl<T, S, C> implements EventStore<T, S, C> {
-
   private final List<Pair<ReplaySubject<Event<T, S, C>>, Predicate<S>>> tupleList;
   private final AtomicInteger idCounter;
   private final List<Event<T, S, C>> eventList;
@@ -25,7 +28,7 @@ public class EventStoreImpl<T, S, C> implements EventStore<T, S, C> {
    * Initialize the EventStore so users can register for events
    * and publish new events.
    */
-  public EventStoreImpl() {
+  EventStoreImpl() {
     idCounter = new AtomicInteger(INITIAL_EVENT_ID);
     tupleList = new ArrayList<>();
     eventList = new ArrayList<>();

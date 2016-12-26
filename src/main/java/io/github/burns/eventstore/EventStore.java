@@ -12,6 +12,7 @@ import java.util.function.Predicate;
  *
  * @param <T> The type associated with events.
  * @param <S> The scope of who should see an event.
+ * @param <C> The type of context.
  */
 public interface EventStore<T, S, C> {
 

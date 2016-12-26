@@ -1,10 +1,12 @@
 package io.github.burns.eventstore;
 
-import io.github.burns.eventstore.impl.EventStoreImpl;
+import io.github.burns.eventstore.impl.EventProcessor;
+import io.github.burns.eventstore.impl.EventStoreFactory;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -30,7 +32,12 @@ public class EventStoreTest {
 
   @Before
   public void before() {
-    eventStore = new EventStoreImpl<>();
+    eventStore = EventStoreFactory.getInstance();
+  }
+
+  @After
+  public void after() {
+    EventStoreFactory.closeInstance();
   }
 
   @Test(timeout = TIMEOUT)
@@ -171,5 +178,12 @@ public class EventStoreTest {
     eventStore.publishEvent(TWO, PUBLIC, content);
     // Replay the events
     eventStore.getEvents(startingId);
+  }
+
+  @Test(timeout = TIMEOUT)
+  public void initializeProcessorThenPublishEventTest(TestContext context) {
+    final Async async = context.async();
+    new EventProcessor<>(ALL_EVENTS_PREDICATE, event -> async.complete());
+    eventStore.publishEvent(ONE, PUBLIC);
   }
 }
